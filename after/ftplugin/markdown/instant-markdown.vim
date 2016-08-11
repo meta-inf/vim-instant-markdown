@@ -7,24 +7,39 @@ if !exists('g:instant_markdown_autostart')
     let g:instant_markdown_autostart = 1
 endif
 
+if !exists('g:instant_markdown_manage_daemon')
+    let g:instant_markdown_manage_daemon = 0
+endif
+
+if !exists('g:instant_markdown_d')
+	let g:instant_markdown_d = 'instant-markdown-d'
+endif
+
 " # Utility Functions
 " Simple system wrapper that ignores empty second args
 function! s:system(cmd, stdin)
-    if strlen(a:stdin) == 0
-        call system(a:cmd)
+    if has("win32")
+        let a:cmd_ = a:cmd . " >NUL"
     else
-        call system(a:cmd, a:stdin)
+        let a:cmd_ = a:cmd . " &>/dev/null &"
+    endif
+    if strlen(a:stdin) == 0
+        call system(a:cmd_, "")
+    else
+        call system(a:cmd_, a:stdin)
     endif
 endfu
 
 function! s:refreshView()
     let bufnr = expand('<bufnr>')
-    call s:system("curl -X PUT -T - http://localhost:8090/ &>/dev/null &",
+    call s:system("curl -X PUT -T - http://localhost:8090/",
                 \ s:bufGetContents(bufnr))
 endfu
 
 function! s:startDaemon(initialMD)
-    call s:system("instant-markdown-d &>/dev/null &", a:initialMD)
+	if g:instant_markdown_manage_daemon
+		call s:system(g:instant_markdown_d, a:initialMD)
+	endif
 endfu
 
 function! s:initDict()
@@ -44,7 +59,9 @@ function! s:popBuffer(bufnr)
 endfu
 
 function! s:killDaemon()
-    call system("curl -s -X DELETE http://localhost:8090/ &>/dev/null &")
+	if g:instant_markdown_manage_daemon
+		call system("curl -s -X DELETE http://localhost:8090/")
+	endif
 endfu
 
 function! s:bufGetContents(bufnr)
